@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 The Falco Authors.
+# Copyright (C) 2023 The Falco Authors.
 #
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -481,7 +481,6 @@
 
 # This rule is not enabled by default, as there are many legitimate
 # readers of shell config files.
-
 - rule: Read Shell Configuration File
   desc: Detect attempts to read shell configuration files by non-shell programs
   condition: >
@@ -940,7 +939,6 @@
 # If you'd like to generally monitor a wider set of directories on top
 # of the ones covered by the rule Write below binary dir, you can use
 # the following rule and lists.
-
 - list: monitored_directories
   items: [/boot, /lib, /lib64, /usr/lib, /usr/local/lib, /usr/local/sbin, /usr/local/bin, /root/.ssh]
 
@@ -1011,9 +1009,8 @@
   priority: WARNING
   tags: [host, container, filesystem, mitre_discovery, mitre_exfiltration, mitre_credential_access, T1555, T1212, T1020, T1552, T1083]
 
-# This rule is disabled by default as many system management tools
+# The rule below is disabled by default as many system management tools
 # like ansible, etc can read these files/paths. Enable it using this macro.
-
 - macro: user_known_read_ssh_information_activities
   condition: (never_true)
 
@@ -1219,7 +1216,7 @@
                           gen_resolvconf., update-ca-certi, certbot, runsv,
                           qualys-cloud-ag, locales.postins, nomachine_binaries,
                           adclient, certutil, crlutil, pam-auth-update, parallels_insta,
-                          openshift-launc, update-rc.d, puppet)
+                          openshift-launc, update-rc.d, puppet, falcoctl)
     and not (container and proc.cmdline in ("cp /run/secrets/kubernetes.io/serviceaccount/ca.crt /etc/pki/ca-trust/source/anchors/openshift-ca.crt"))
     and not proc.pname in (sysdigcloud_binaries, mail_config_binaries, hddtemp.postins, sshkit_script_binaries, locales.postins, deb_binaries, dhcp_binaries)
     and not fd.name pmatch (safe_etc_dirs)
@@ -2062,7 +2059,6 @@
 # In the overridden macro, the condition would look something like
 # (container.image.repository = vendor/container-1 or
 # container.image.repository = vendor/container-2 or ...)
-
 - macro: allowed_containers
   condition: (container.id exists)
 
@@ -3381,6 +3377,13 @@
   priority: WARNING
   tags: [host, container, process, mitre_execution, mitre_privilege_escalation, T1055.008]
   
+- rule: PTRACE anti-debug attempt
+  desc: "Detect usage of the PTRACE system call with the PTRACE_TRACEME argument, indicating a program actively attempting to avoid debuggers attaching to the process. This behavior is typically indicative of malware activity."
+  condition: evt.type=ptrace and evt.dir=> and evt.arg.request contains PTRACE_TRACEME and proc_name_exists
+  output: Detected potential PTRACE_TRACEME anti-debug attempt (proc.cmdline=%proc.cmdline container=%container.info evt.type=%evt.type evt.arg.request=%evt.arg.request proc.pid=%proc.pid proc.cwd=%proc.cwd proc.ppid=%proc.ppid proc.pcmdline=%proc.pcmdline proc.sid=%proc.sid proc.exepath=%proc.exepath user.uid=%user.uid user.loginuid=%user.loginuid user.loginname=%user.loginname user.name=%user.name group.gid=%group.gid group.name=%group.name container.id=%container.id container.name=%container.name image=%container.image.repository)
+  priority: NOTICE
+  tags: [host, container, process, mitre_defense_evasion, T1622]
+
 - macro: private_aws_credentials
   condition: >
     (proc.args icontains "aws_access_key_id" or
